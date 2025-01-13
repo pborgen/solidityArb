@@ -1,0 +1,241 @@
+{
+	"compiler": {
+		"version": "0.8.17+commit.8df45f5f"
+	},
+	"language": "Solidity",
+	"output": {
+		"abi": [
+			{
+				"inputs": [],
+				"stateMutability": "nonpayable",
+				"type": "constructor"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "approvee",
+						"type": "address"
+					},
+					{
+						"internalType": "address",
+						"name": "tokenAddress",
+						"type": "address"
+					}
+				],
+				"name": "approveToken",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "amount",
+						"type": "uint256"
+					},
+					{
+						"internalType": "address",
+						"name": "token",
+						"type": "address"
+					}
+				],
+				"name": "deposit",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "amountToken0",
+						"type": "uint256"
+					},
+					{
+						"internalType": "address",
+						"name": "routerAddress0",
+						"type": "address"
+					},
+					{
+						"internalType": "address",
+						"name": "routerAddress1",
+						"type": "address"
+					},
+					{
+						"internalType": "address",
+						"name": "token0Address",
+						"type": "address"
+					},
+					{
+						"internalType": "address",
+						"name": "token1Address",
+						"type": "address"
+					}
+				],
+				"name": "makeArbitrageSimple",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "amountToken0",
+						"type": "uint256"
+					},
+					{
+						"internalType": "address",
+						"name": "routerAddress0",
+						"type": "address"
+					},
+					{
+						"internalType": "address",
+						"name": "routerAddress1",
+						"type": "address"
+					},
+					{
+						"internalType": "address",
+						"name": "token0Address",
+						"type": "address"
+					},
+					{
+						"internalType": "address",
+						"name": "token1Address",
+						"type": "address"
+					}
+				],
+				"name": "makeArbitrageSimpleNoCheck",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "amountToken0",
+						"type": "uint256"
+					},
+					{
+						"internalType": "address",
+						"name": "routerAddress0",
+						"type": "address"
+					},
+					{
+						"internalType": "address",
+						"name": "routerAddress1",
+						"type": "address"
+					},
+					{
+						"internalType": "address[]",
+						"name": "pathRouter0",
+						"type": "address[]"
+					},
+					{
+						"internalType": "address[]",
+						"name": "pathRouter1",
+						"type": "address[]"
+					}
+				],
+				"name": "makeArbitrageSimpleWithPath",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "owner",
+				"outputs": [
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "amount",
+						"type": "uint256"
+					},
+					{
+						"internalType": "address",
+						"name": "tokenAddress",
+						"type": "address"
+					}
+				],
+				"name": "withdraw",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		],
+		"devdoc": {
+			"kind": "dev",
+			"methods": {},
+			"version": 1
+		},
+		"userdoc": {
+			"kind": "user",
+			"methods": {},
+			"version": 1
+		}
+	},
+	"settings": {
+		"compilationTarget": {
+			"src/SimpleArbitrage.sol": "SimpleArbitrage"
+		},
+		"evmVersion": "london",
+		"libraries": {},
+		"metadata": {
+			"bytecodeHash": "ipfs"
+		},
+		"optimizer": {
+			"enabled": false,
+			"runs": 200
+		},
+		"remappings": []
+	},
+	"sources": {
+		"src/SimpleArbitrage.sol": {
+			"keccak256": "0x0429a4aee7b93c6c7e49cc240db4a14f188cffcf016ed5d992b3b516bfe0a9c3",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://d665a3b7c788aa9308fdb26424ffb201a289efaa8ef9608697bb49c08ed65736",
+				"dweb:/ipfs/QmaN9E5SJR6vXvw6egN5deE5mxxf3GU1sVU4sEjuRCSLuz"
+			]
+		},
+		"src/interface/IERC20.sol": {
+			"keccak256": "0xae6bb67bfd71d794cd0675ad90d903c7b85f6f951e4997ba94e7554238ca79b3",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://40235ef9ace9300b2e4b21a6bf706a64823c41f613e6cbeff8e271b117911850",
+				"dweb:/ipfs/QmXPURvQWbzNssZkY3WGtUEuMrdhU1RqEazqtJfoBzKsvs"
+			]
+		},
+		"src/interface/IUniswapV2Router01.sol": {
+			"keccak256": "0x0158400453fa73e69a4e6aaf3e1b000c40e2d4544de4b882198ecd69fde9719d",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://d1ea342d9ed3391ec767b432ee97993825dd0c7baadd2b35348238587af6f054",
+				"dweb:/ipfs/QmZC2H6w1izowyHpGPgbdcJvYEFGCJnbksaNNANjpyyKiN"
+			]
+		},
+		"src/interface/IUniswapV2Router02.sol": {
+			"keccak256": "0xd05ba13a93cc2cc486e15e31fb5b37ee4feb9c12d6869ce17f05d5f9a508d77e",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://1aa901c6f2d8978e068252e2335ac3877a4904a7d0068137e8ff6774441fef54",
+				"dweb:/ipfs/QmbXom4JqnF25KH762DNe11UggGXsnSt2it1nRFUnJxWWm"
+			]
+		}
+	},
+	"version": 1
+}
