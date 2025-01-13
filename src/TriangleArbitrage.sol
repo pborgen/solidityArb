@@ -9,8 +9,28 @@ contract TriangleArbitrage {
     address public owner;
     address constant WPLS = 0xA1077a294dDE1B09bB078844df40758a5D0f9a27;
 
+    address constant ROUTER_UNISWAP_V2 = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+    address constant ROUTER_SUSHI_SWAP_V2 = 0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F;
+    address constant ROUTER_PULSEX_V1 = 0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02;
+    address constant ROUTER_PULSEX_V2 = 0x165C3410fC91EF562C50559f7d2289fEbed552d9;
+    address constant ROUTER_SHIBASWAP = 0x03f7724180AA6b939894B5Ca4314783B0b36b329;
+    address constant ROUTER_9MM_V2 = 0xcC73b59F8D7b7c532703bDfea2808a28a488cF47;
+    address constant ROUTER_9INCH_V2 = 0xeB45a3c4aedd0F47F345fB4c8A1802BB5740d725;
+    address constant ROUTER_PULSE_RATE_V2 = 0x71bb8a2feD36aa2dEa9f8f9Cb43E038315Dd7ba3;
+    address constant ROUTER_EZSWAP_V2 = 0x05d5F20500eD8d9E012647E6CFe1b2Bf89f5b926;
+  
     constructor() {
         owner = msg.sender;
+
+        approveToken(ROUTER_UNISWAP_V2, WPLS);
+        approveToken(ROUTER_SUSHI_SWAP_V2, WPLS);
+        approveToken(ROUTER_PULSEX_V1, WPLS);
+        approveToken(ROUTER_PULSEX_V2, WPLS);
+        approveToken(ROUTER_SHIBASWAP, WPLS);
+        approveToken(ROUTER_9MM_V2, WPLS);
+        approveToken(ROUTER_9INCH_V2, WPLS);
+        approveToken(ROUTER_PULSE_RATE_V2, WPLS);
+        approveToken(ROUTER_EZSWAP_V2, WPLS);
     }
 
     modifier onlyOwner() {
