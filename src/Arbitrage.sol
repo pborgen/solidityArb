@@ -236,13 +236,18 @@ contract Arbitrage {
         address sell_token,
         address buy_token
     ) internal returns (uint256) {
-        IERC20(sell_token).approve(getRouter(routerIndex), type(uint256).max);
+        if (sell_token != WPLS) {
+            IERC20(sell_token).approve(
+                routerMap[routerIndex],
+                type(uint256).max
+            );
+        }
 
         address[] memory path = new address[](2);
         path[0] = sell_token;
         path[1] = buy_token;
 
-        uint256 amountOut = IUniswapV2Router02(getRouter(routerIndex))
+        uint256 amountOut = IUniswapV2Router02(routerMap[routerIndex])
             .swapExactTokensForTokens(
                 amountIn,
                 0,
@@ -255,10 +260,13 @@ contract Arbitrage {
 
     function _swapSimpleWithPath(
         uint256 amountIn,
-        address routerAddress,
+        uint8 routerIndex,
         address[] calldata path
     ) internal returns (uint256) {
-        IERC20(path[0]).approve(routerAddress, amountIn);
+        address routerAddress = routerMap[routerIndex];
+        if (path[0] != WPLS) {
+            IERC20(path[0]).approve(routerAddress, amountIn);
+        }
 
         uint256 amountOut = IUniswapV2Router02(routerAddress)
             .swapExactTokensForTokens(
