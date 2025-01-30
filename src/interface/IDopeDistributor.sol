@@ -2,5 +2,5 @@
 pragma solidity 0.8.20;
 
 interface IDopeDistributor {
-    function deposit() external payable;
+    function process(address _token) external;
 }

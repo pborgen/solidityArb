@@ -10,11 +10,9 @@ import "../interface/IDexFactory.sol";
 import "./DopeDistributor.sol";
 
 contract BigUp is ERC20, Ownable {
-    uint256 public feeBasisPoints;
+    uint256 public feeBasisPoints = 100; // 1%
     uint256 public amountToHoldBeforeDistribute = 100_000_000_000_000_000_000;
     uint256 public gatheredFees = 0;
-
-    mapping(address => uint256) public walletProtection;
 
     IDopeDistributor public distributor;
 
@@ -37,10 +35,6 @@ contract BigUp is ERC20, Ownable {
     }
 
     receive() external payable {}
-
-    function getFees() public pure returns (uint256) {
-        return 1;
-    }
 
     function excludeFromFees(address account, bool excluded) public onlyOwner {
         _isExcludedFromFees[account] = excluded;
@@ -68,11 +62,32 @@ contract BigUp is ERC20, Ownable {
 
         if (gatheredFees >= amountToHoldBeforeDistribute) {
             super._transfer(address(this), address(distributor), gatheredFees);
+
+            try distributor.process(address(this)) {} catch {}
+
             gatheredFees = 0;
         }
     }
 
     function setDistributor(address _distributor) public onlyOwner {
         distributor = IDopeDistributor(_distributor);
+    }
+
+    function updateAmountToHoldBeforeDistribute(
+        uint256 _amount
+    ) public onlyOwner {
+        require(_amount <= 500, "Amount must be at most 5%");
+        amountToHoldBeforeDistribute = _amount;
+    }
+
+    function cleanUpPls() public onlyOwner {
+        super._transfer(address(this), msg.sender, balanceOf(address(this)));
+    }
+
+    function cleanUpToken(address _token) public onlyOwner {
+        IERC20(_token).transfer(
+            msg.sender,
+            IERC20(_token).balanceOf(address(this))
+        );
     }
 }
