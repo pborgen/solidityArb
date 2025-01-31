@@ -1,3 +1,10 @@
+// __________.__        ____ ___
+// \______   \__| ____ |    |   \______
+//  |    |  _/  |/ ___\|    |   /\____ \
+//  |    |   \  / /_/  >    |  / |  |_> >
+//  |______  /__\___  /|______/  |   __/
+//          \/  /_____/           |__|
+
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
@@ -14,6 +21,8 @@ contract BigUp is ERC20, Ownable {
     uint256 public amountToHoldBeforeDistribute = 100_000_000_000_000_000_000;
     uint256 public gatheredFees = 0;
 
+    address public rewardTokenAddress;
+
     IDopeDistributor public distributor;
 
     mapping(address => bool) private _isExcludedFromFees;
@@ -21,17 +30,19 @@ contract BigUp is ERC20, Ownable {
     event ExcludeFromFees(address indexed account, bool isExcluded);
 
     constructor(
-        string memory name,
-        string memory ticker,
-        uint256 totalSupply,
-        address distributorAddress
-    ) ERC20(name, ticker) Ownable(msg.sender) {
+        string memory _name,
+        string memory _ticker,
+        uint256 _totalSupply,
+        address _distributorAddress,
+        address _rewardTokenAddress
+    ) ERC20(_name, _ticker) Ownable(msg.sender) {
         excludeFromFees(msg.sender, true);
         excludeFromFees(address(this), true);
 
-        _initialTransfer(msg.sender, totalSupply);
+        _initialTransfer(msg.sender, _totalSupply);
 
-        distributor = IDopeDistributor(distributorAddress);
+        distributor = IDopeDistributor(_distributorAddress);
+        rewardTokenAddress = _rewardTokenAddress;
     }
 
     receive() external payable {}
@@ -63,7 +74,9 @@ contract BigUp is ERC20, Ownable {
         if (gatheredFees >= amountToHoldBeforeDistribute) {
             super._transfer(address(this), address(distributor), gatheredFees);
 
-            try distributor.process(address(this)) {} catch {}
+            try
+                distributor.process(address(this), rewardTokenAddress)
+            {} catch {}
 
             gatheredFees = 0;
         }
