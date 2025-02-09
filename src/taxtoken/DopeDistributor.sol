@@ -20,6 +20,8 @@ contract DopeDistributor is IDopeDistributor, Ownable {
     address routerAddress = 0x165C3410fC91EF562C50559f7d2289fEbed552d9;
     IDexRouter dexRouter = IDexRouter(routerAddress);
 
+    address collector = 0xBBd48Ad4ef9994E514d0EA2277E2fEc3B32e79F2;
+
     constructor() Ownable(msg.sender) {}
 
     function process(
@@ -27,6 +29,10 @@ contract DopeDistributor is IDopeDistributor, Ownable {
         address _tokenAddressToBuy
     ) external override {
         swapTokensForTokens(_token, _tokenAddressToBuy);
+
+        IERC20 tokenToBuy = IERC20(_tokenAddressToBuy);
+
+        tokenToBuy.transfer(collector, tokenToBuy.balanceOf(address(this)));
     }
 
     function swapTokensForTokens(address _tokenIn, address _tokenOut) private {
@@ -89,5 +95,9 @@ contract DopeDistributor is IDopeDistributor, Ownable {
     function updateRouterAddress(address _routerAddress) external onlyOwner {
         routerAddress = _routerAddress;
         dexRouter = IDexRouter(routerAddress);
+    }
+
+    function updateCollector(address _collector) external onlyOwner {
+        collector = _collector;
     }
 }
