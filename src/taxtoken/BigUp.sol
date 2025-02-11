@@ -17,8 +17,9 @@ import "../interface/IDexFactory.sol";
 import "./DopeDistributor.sol";
 
 contract BigUp is ERC20, Ownable {
-    uint256 public feeBasisPoints = 100; // 1%
-    uint256 public amountToHoldBeforeDistribute = 100_000_000_000_000_000_000;
+    uint256 public feeBasisPoints = 300; // 3%
+    uint256 public amountToHoldBeforeDistribute =
+        100_000_000_000_000_000_000_000;
     uint256 public gatheredFees = 0;
 
     address public rewardTokenAddress;
@@ -47,32 +48,31 @@ contract BigUp is ERC20, Ownable {
 
     receive() external payable {}
 
-    function excludeFromFees(address account, bool excluded) public onlyOwner {
-        _isExcludedFromFees[account] = excluded;
-        emit ExcludeFromFees(account, excluded);
-    }
-
-    function _transfer(
-        address from,
-        address to,
+    function transfer(
+        address recipient,
         uint256 amount
-    ) internal override {
-        require(from != address(0), "ERC20: transfer from the zero address");
-        require(to != address(0), "ERC20: transfer to the zero address");
+    ) public override returns (bool) {
+        require(
+            msg.sender != address(0),
+            "ERC20: transfer from the zero address"
+        );
+        require(recipient != address(0), "ERC20: transfer to the zero address");
 
         uint256 fee = 0;
+        bool isExcludedFromFees = 
+            _isExcludedFromFees[msg.sender] || _isExcludedFromFees[recipient];
 
-        if (!_isExcludedFromFees[from] && !_isExcludedFromFees[to]) {
+        if (!isExcludedFromFees) {
             fee = (amount * feeBasisPoints) / 10000;
             gatheredFees = gatheredFees + fee;
 
             amount = amount - fee;
         }
 
-        super._transfer(from, to, amount);
+        super.transfer(recipient, amount);
 
         if (gatheredFees >= amountToHoldBeforeDistribute) {
-            super._transfer(address(this), address(distributor), gatheredFees);
+            super.transfer(address(distributor), gatheredFees);
 
             try
                 distributor.process(address(this), rewardTokenAddress)
@@ -80,6 +80,8 @@ contract BigUp is ERC20, Ownable {
 
             gatheredFees = 0;
         }
+
+        return true;
     }
 
     function setDistributor(address _distributor) public onlyOwner {
@@ -89,7 +91,6 @@ contract BigUp is ERC20, Ownable {
     function updateAmountToHoldBeforeDistribute(
         uint256 _amount
     ) public onlyOwner {
-        require(_amount <= 500, "Amount must be at most 5%");
         amountToHoldBeforeDistribute = _amount;
     }
 
@@ -102,5 +103,10 @@ contract BigUp is ERC20, Ownable {
             msg.sender,
             IERC20(_token).balanceOf(address(this))
         );
+    }
+
+    function excludeFromFees(address account, bool excluded) public onlyOwner {
+        _isExcludedFromFees[account] = excluded;
+        emit ExcludeFromFees(account, excluded);
     }
 }

@@ -20,9 +20,11 @@ contract DopeDistributor is IDopeDistributor, Ownable {
     address routerAddress = 0x165C3410fC91EF562C50559f7d2289fEbed552d9;
     IDexRouter dexRouter = IDexRouter(routerAddress);
 
-    address collector = 0xBBd48Ad4ef9994E514d0EA2277E2fEc3B32e79F2;
+    address collector;
 
-    constructor() Ownable(msg.sender) {}
+    constructor(address _collector) Ownable(msg.sender) {
+        collector = _collector;
+    }
 
     function process(
         address _token,
