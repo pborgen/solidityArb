@@ -4,14 +4,15 @@ pragma solidity 0.8.20;
 
 import "./interface/IERC20.sol";
 import "./interface/IUniswapV2Router02.sol";
+import "./interface/IUniswapV2Pair.sol";
 
 contract Arbitrage {
     address public owner;
 
-    mapping(address => bool) public authorizedAddresses;
-    mapping(uint8 => address) public routerMap;
-
     address constant WPLS = 0xA1077a294dDE1B09bB078844df40758a5D0f9a27;
+
+    uint256 constant ONE_PLS = 10 ** 18;
+    uint256 minProfitInPls = ONE_PLS * 300;
 
     address constant ROUTER_UNISWAP_V2 =
         0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
@@ -31,6 +32,18 @@ contract Arbitrage {
     address constant ROUTER_EZSWAP_V2 =
         0x05d5F20500eD8d9E012647E6CFe1b2Bf89f5b926;
 
+    struct Pair {
+        address pairAddress;
+        address token0;
+        address token1;
+        address router;
+        bool doesNextPathUseSameRouter;
+    }
+
+    event ArbitrageSuccess(Pair[] path, uint256 profit);
+
+    event ArbitrageFailed(Pair[] path, string reason);
+
     constructor() {
         owner = msg.sender;
 
@@ -43,20 +56,6 @@ contract Arbitrage {
         approveToken(ROUTER_9INCH_V2, WPLS);
         approveToken(ROUTER_PULSE_RATE_V2, WPLS);
         approveToken(ROUTER_EZSWAP_V2, WPLS);
-
-        authorizedAddresses[owner] = true;
-        authorizedAddresses[0xD73AA11744022Eb262d026f884DBA307c463c131] = true;
-        authorizedAddresses[0x2b3A602abB7e35675693ff2b9f97E077D3c6AB2E] = true;
-
-        routerMap[1] = ROUTER_UNISWAP_V2;
-        routerMap[2] = ROUTER_SUSHI_SWAP_V2;
-        routerMap[3] = ROUTER_PULSEX_V1;
-        routerMap[4] = ROUTER_PULSEX_V2;
-        routerMap[5] = ROUTER_SHIBASWAP;
-        routerMap[6] = ROUTER_9MM_V2;
-        routerMap[7] = ROUTER_9INCH_V2;
-        routerMap[8] = ROUTER_PULSE_RATE_V2;
-        routerMap[9] = ROUTER_EZSWAP_V2;
     }
 
     modifier onlyOwner() {
@@ -64,49 +63,111 @@ contract Arbitrage {
         _;
     }
 
-    modifier onlyAuthorized() {
-        require(authorizedAddresses[msg.sender], "Not authorized");
-        _;
-    }
 
     /**
      * @dev Fallback function to receive PLS
      */
     receive() external payable {}
 
-    /**
-     * @dev Add an address to the authorized list
-     * @param _address The address to add to the authorized list
-     */
-    function authorizeAddress(address _address) public onlyOwner {
-        authorizedAddresses[_address] = true;
+    function execute(uint256 amountIn, Pair[] calldata path) public {
+
+        uint256 arbProfit = getArbProfit(amountIn, path);
+        require(arbProfit >= minProfitInPls, "Arbitrage not profitable");
+
+        uint256 balancePlsBefore = IERC20(WPLS).balanceOf(address(this));
+        executeArb(amountIn, path);
+
+        require(
+            IERC20(WPLS).balanceOf(address(this)) > balancePlsBefore,
+            "Arbitrage failed"
+        );
     }
 
-    /**
-     * @dev Remove an address from the authorized list
-     * @param _address The address to remove from the authorized list
-     */
-    function revokeAuthorization(address _address) public onlyOwner {
-        authorizedAddresses[_address] = false;
+    // Check if arb is succeed
+    function getArbProfit(
+        uint256 amountIn,
+        Pair[] calldata pairPath
+    ) public view returns (uint256) {
+        for (uint256 i = 0; i < pairPath.length; i++) {
+            (uint256 reserveIn, uint256 reserveOut) = getReserves(
+                pairPath[i].pairAddress,
+                pairPath[i].token0,
+                pairPath[i].token1
+            );
+
+            // Store amount out to amountIn for use in the next iteration if there is one
+            amountIn = IUniswapV2Router02(pairPath[i].router).getAmountOut(
+                amountIn,
+                reserveIn,
+                reserveOut
+            );
+        }
+
+        return amountIn;
     }
 
-    /**
-    /**
-     * @dev Set the router for a given index
-     * @param index The index of the router to set
-     * @param router The address of the router to set
-     */
-    function setRouter(uint8 index, address router) public onlyOwner {
-        routerMap[index] = router;
+    // Execute arb
+    function executeArb(uint256 amountIn, Pair[] calldata pairPath) public {
+        address[] memory path = new address[](2);
+
+        for (uint256 i = 0; i < pairPath.length; i++) {
+            path[0] = pairPath[i].token0;
+            path[1] = pairPath[i].token1;
+
+            uint256 outTokenBalanceBefore = IERC20(path[1]).balanceOf(
+                address(this)
+            );
+
+            // Skip the first pair because it is WPLS and already approved
+            if (i > 0) {
+                uint256 allowance = IERC20(path[1]).allowance(
+                    address(this),
+                    pairPath[i].router
+                );
+                if (allowance < amountIn) {
+                    IERC20(path[1]).approve(
+                        pairPath[i].router,
+                        type(uint256).max
+                    );
+                }
+            }
+
+            // Store amount out to amountIn for use in the next iteration if there is one
+            IUniswapV2Router02(pairPath[i].router)
+                .swapExactTokensForTokensSupportingFeeOnTransferTokens(
+                    amountIn,
+                    0,
+                    path,
+                    address(this),
+                    block.timestamp
+                );
+
+            amountIn =
+                IERC20(path[1]).balanceOf(address(this)) -
+                outTokenBalanceBefore;
+        }
     }
 
-    /**
-     * @dev Get the router for a given index
-     * @param index The index of the router to get
-     * @return The address of the router
-     */
-    function getRouter(uint8 index) public view returns (address) {
-        return routerMap[index];
+    function getReserves(
+        address pairAddress,
+        address tokenA,
+        address tokenB
+    ) internal view returns (uint reserveA, uint reserveB) {
+        (address token0, ) = sortTokens(tokenA, tokenB);
+        (uint reserve0, uint reserve1, ) = IUniswapV2Pair(pairAddress)
+            .getReserves();
+        (reserveA, reserveB) = tokenA == token0
+            ? (reserve0, reserve1)
+            : (reserve1, reserve0);
+    }
+
+    function sortTokens(
+        address tokenA,
+        address tokenB
+    ) internal pure returns (address token0, address token1) {
+        (token0, token1) = tokenA < tokenB
+            ? (tokenA, tokenB)
+            : (tokenB, tokenA);
     }
 
     function withdraw(address tokenAddress) public onlyOwner {
@@ -117,7 +178,7 @@ contract Arbitrage {
     // Function to withdraw native PLS
     function withdrawPLS() public onlyOwner {
         uint256 amount = address(this).balance;
-        require(amount >= 1_000_000_000_000_000_000, "Insufficient balance");
+        require(amount >= 10 * ONE_PLS, "Insufficient balance");
 
         // Transfer the specified amount of PLS to the owner
         (bool success, ) = owner.call{value: amount}("");
@@ -132,150 +193,7 @@ contract Arbitrage {
         IERC20(tokenAddress).approve(approvee, maxInt);
     }
 
-    function makeArbitrageTriangle(
-        uint256 amountToken0,
-        uint8 routerIndex0,
-        uint8 routerIndex1,
-        uint8 routerIndex2,
-        address token1Address,
-        address token2Address
-    ) public onlyAuthorized {
-        uint256 amountOut1 = _swapSimple(
-            amountToken0,
-            routerIndex0,
-            WPLS,
-            token1Address
-        );
-
-        uint256 amountOut2 = _swapSimple(
-            amountOut1,
-            routerIndex1,
-            token1Address,
-            token2Address
-        );
-
-        uint256 amountOut3 = _swapSimple(
-            amountOut2,
-            routerIndex2,
-            token2Address,
-            WPLS
-        );
-
-        require(amountOut3 > amountToken0, "Arbitrage not profitable");
-    }
-
-    function makeArbitrageTriangleNoCheck(
-        uint256 amountToken0,
-        uint8 routerIndex0,
-        uint8 routerIndex1,
-        uint8 routerIndex2,
-        address token1Address,
-        address token2Address
-    ) public onlyAuthorized {
-        uint256 amountOut1 = _swapSimple(
-            amountToken0,
-            routerIndex0,
-            WPLS,
-            token1Address
-        );
-
-        uint256 amountOut2 = _swapSimple(
-            amountOut1,
-            routerIndex1,
-            token1Address,
-            token2Address
-        );
-
-        _swapSimple(amountOut2, routerIndex2, token2Address, WPLS);
-    }
-
-    function makeArbitrageSimple(
-        uint256 amountToken0,
-        uint8 routerIndex0,
-        uint8 routerIndex1,
-        address token0Address,
-        address token1Address
-    ) public onlyAuthorized {
-        uint256 amountOut = _swapSimple(
-            amountToken0,
-            routerIndex0,
-            token0Address,
-            token1Address
-        );
-
-        uint256 amountFinal = _swapSimple(
-            amountOut,
-            routerIndex1,
-            token1Address,
-            token0Address
-        );
-
-        require(amountFinal > amountToken0, "Arbitrage not profitable");
-    }
-
-    function makeArbitrageSimpleNoCheck(
-        uint256 amountToken0,
-        uint8 routerIndex0,
-        uint8 routerIndex1,
-        address token0Address,
-        address token1Address
-    ) public onlyAuthorized {
-        uint256 amountOut = _swapSimple(
-            amountToken0,
-            routerIndex0,
-            token0Address,
-            token1Address
-        );
-
-        _swapSimple(amountOut, routerIndex1, token1Address, token0Address);
-    }
-
-    function _swapSimple(
-        uint256 amountIn,
-        uint8 routerIndex,
-        address sell_token,
-        address buy_token
-    ) internal returns (uint256) {
-        if (sell_token != WPLS) {
-            IERC20(sell_token).approve(
-                routerMap[routerIndex],
-                type(uint256).max
-            );
-        }
-
-        address[] memory path = new address[](2);
-        path[0] = sell_token;
-        path[1] = buy_token;
-
-        uint256 amountOut = IUniswapV2Router02(routerMap[routerIndex])
-            .swapExactTokensForTokens(
-                amountIn,
-                0,
-                path,
-                address(this),
-                block.timestamp
-            )[1];
-        return amountOut;
-    }
-
-    function _swapSimpleWithPath(
-        uint256 amountIn,
-        uint8 routerIndex,
-        address[] calldata path
-    ) internal returns (uint256) {
-        address routerAddress = routerMap[routerIndex];
-        if (path[0] != WPLS) {
-            IERC20(path[0]).approve(routerAddress, amountIn);
-        }
-
-        uint256 amountOut = IUniswapV2Router02(routerAddress)
-            .swapExactTokensForTokens(
-                amountIn,
-                0,
-                path,
-                address(this),
-                block.timestamp
-            )[1];
-        return amountOut;
+    function setMinProfitInPls(uint256 _minProfitInPls) public onlyOwner {
+        minProfitInPls = _minProfitInPls;
     }
 }
