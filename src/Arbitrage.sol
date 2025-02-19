@@ -29,8 +29,6 @@ contract Arbitrage {
         0xeB45a3c4aedd0F47F345fB4c8A1802BB5740d725;
     address constant ROUTER_PULSE_RATE_V2 =
         0x71bb8a2feD36aa2dEa9f8f9Cb43E038315Dd7ba3;
-    address constant ROUTER_EZSWAP_V2 =
-        0x05d5F20500eD8d9E012647E6CFe1b2Bf89f5b926;
 
     struct Pair {
         address pairAddress;
@@ -55,7 +53,6 @@ contract Arbitrage {
         approveToken(ROUTER_9MM_V2, WPLS);
         approveToken(ROUTER_9INCH_V2, WPLS);
         approveToken(ROUTER_PULSE_RATE_V2, WPLS);
-        approveToken(ROUTER_EZSWAP_V2, WPLS);
     }
 
     modifier onlyOwner() {
@@ -63,18 +60,17 @@ contract Arbitrage {
         _;
     }
 
-
     /**
      * @dev Fallback function to receive PLS
      */
     receive() external payable {}
 
     function execute(uint256 amountIn, Pair[] calldata path) public {
-
         uint256 arbProfit = getArbProfit(amountIn, path);
         require(arbProfit >= minProfitInPls, "Arbitrage not profitable");
 
         uint256 balancePlsBefore = IERC20(WPLS).balanceOf(address(this));
+        
         executeArb(amountIn, path);
 
         require(
@@ -114,23 +110,23 @@ contract Arbitrage {
             path[0] = pairPath[i].token0;
             path[1] = pairPath[i].token1;
 
-            uint256 outTokenBalanceBefore = IERC20(path[1]).balanceOf(
-                address(this)
-            );
-
             // Skip the first pair because it is WPLS and already approved
             if (i > 0) {
-                uint256 allowance = IERC20(path[1]).allowance(
+                uint256 allowance = IERC20(path[0]).allowance(
                     address(this),
                     pairPath[i].router
                 );
                 if (allowance < amountIn) {
-                    IERC20(path[1]).approve(
+                    IERC20(path[0]).approve(
                         pairPath[i].router,
                         type(uint256).max
                     );
                 }
             }
+
+            uint256 outTokenBalanceBefore = IERC20(path[1]).balanceOf(
+                address(this)
+            );
 
             // Store amount out to amountIn for use in the next iteration if there is one
             IUniswapV2Router02(pairPath[i].router)
@@ -159,6 +155,10 @@ contract Arbitrage {
         (reserveA, reserveB) = tokenA == token0
             ? (reserve0, reserve1)
             : (reserve1, reserve0);
+    }
+
+    function getWplsBalance() public view returns (uint256) {
+        return IERC20(WPLS).balanceOf(address(this));
     }
 
     function sortTokens(
