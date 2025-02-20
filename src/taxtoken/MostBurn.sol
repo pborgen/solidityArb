@@ -16,7 +16,7 @@ import "../interface/IDexFactory.sol";
 
 import "./DopeDistributor.sol";
 
-contract ShibBurn is ERC20, Ownable {
+contract MostBurn is ERC20, Ownable {
     uint256 public fee = 1; // 1%
     uint256 public amountToHoldBeforeDistribute =
         100_000_000_000_000_000_000_000;

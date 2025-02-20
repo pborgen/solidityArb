@@ -44,9 +44,6 @@ interface IArbitrage {
         Pair[] calldata pairPath
     ) external view returns (uint256);
 
-    // Execute arb
-    function executeArb(uint256 amountIn, Pair[] calldata pairPath) external;
-
     function getWplsBalance() external view returns (uint256);
 
     function withdraw(address tokenAddress) external;

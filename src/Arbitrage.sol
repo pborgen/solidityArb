@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.28;
 
 import "./interface/IERC20.sol";
 import "./interface/IUniswapV2Router02.sol";
@@ -13,7 +13,7 @@ contract Arbitrage is IArbitrage {
     address WPLS = 0xA1077a294dDE1B09bB078844df40758a5D0f9a27;
 
     uint256 constant ONE_PLS = 10 ** 18;
-    uint256 minProfitInPls = ONE_PLS * 300;
+    uint256 minProfitInPls = ONE_PLS * 400;
 
     address constant ROUTER_UNISWAP_V2 =
         0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
@@ -69,14 +69,26 @@ contract Arbitrage is IArbitrage {
 
         uint256 balanceWplsAfter = IERC20(WPLS).balanceOf(address(this));
 
-        emit ArbitrageExecuted(amountIn, balanceWplsBefore, balanceWplsAfter, path, 0);
+        emit ArbitrageExecuted(
+            amountIn,
+            balanceWplsBefore,
+            balanceWplsAfter,
+            path,
+            0
+        );
 
         if (balanceWplsAfter > balanceWplsBefore) {
             // We have profit
             uint256 profit = balanceWplsAfter - balanceWplsBefore;
 
             if (profit >= minProfitInPls) {
-                emit ArbitrageExecuted(amountIn, balanceWplsBefore, balanceWplsAfter, path, profit);
+                emit ArbitrageExecuted(
+                    amountIn,
+                    balanceWplsBefore,
+                    balanceWplsAfter,
+                    path,
+                    profit
+                );
                 return;
             } else {
                 revert("not enough profit");
@@ -84,8 +96,6 @@ contract Arbitrage is IArbitrage {
         } else {
             revert("negative profit");
         }
-
-        
     }
 
     // Check if arb is succeed
@@ -101,18 +111,14 @@ contract Arbitrage is IArbitrage {
             );
 
             // Store amount out to amountIn for use in the next iteration if there is one
-            amountIn = IUniswapV2Router02(pairPath[i].router).getAmountOut(
-                amountIn,
-                reserveIn,
-                reserveOut
-            );
+            amountIn = getAmountOut(amountIn, reserveIn, reserveOut);
         }
 
         return amountIn;
     }
 
     // Execute arb
-    function executeArb(uint256 amountIn, Pair[] calldata pairPath) public {
+    function executeArb(uint256 amountIn, Pair[] calldata pairPath) private {
         address[] memory path = new address[](2);
 
         for (uint256 i = 0; i < pairPath.length; i++) {
@@ -166,8 +172,16 @@ contract Arbitrage is IArbitrage {
             : (reserve1, reserve0);
     }
 
-    function getWplsBalance() public view returns (uint256) {
-        return IERC20(WPLS).balanceOf(address(this));
+    function getAmountOut(
+        uint256 amountIn,
+        uint256 reserveIn,
+        uint256 reserveOut
+    ) internal pure returns (uint256 amountOut) {
+        uint256 amountInWithFee = amountIn * 997;
+        uint256 numerator = amountInWithFee * reserveOut;
+        uint256 denominator = (reserveIn * 1000) + amountInWithFee;
+
+        return numerator / denominator;
     }
 
     function sortTokens(
@@ -211,7 +225,15 @@ contract Arbitrage is IArbitrage {
         minProfitInPls = _minProfitInPls;
     }
 
+    function getMinProfitPls() public view returns (uint256) {
+        return minProfitInPls;
+    }
+
     function setWplsAddress(address _wplsAddress) public onlyOwner {
         WPLS = _wplsAddress;
+    }
+
+    function getWplsBalance() public view returns (uint256) {
+        return IERC20(WPLS).balanceOf(address(this));
     }
 }

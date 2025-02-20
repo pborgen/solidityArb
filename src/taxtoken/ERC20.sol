@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "lib/openzeppelin-contracts/contracts/utils/Context.sol";
@@ -152,5 +152,4 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
         _totalSupply += amount;
         emit Transfer(address(0), to, amount);
     }
-
 }
