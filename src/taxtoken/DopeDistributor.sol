@@ -31,13 +31,9 @@ contract DopeDistributor is IDopeDistributor, Ownable {
         address _tokenAddressToBuy
     ) external override {
         swapTokensForTokens(_token, _tokenAddressToBuy);
-
-        IERC20 tokenToBuy = IERC20(_tokenAddressToBuy);
-
-        tokenToBuy.transfer(collector, tokenToBuy.balanceOf(address(this)));
     }
 
-    function swapTokensForTokens(address _tokenIn, address _tokenOut) private {
+    function swapTokensForTokens(address _tokenIn, address _tokenOut) public {
         address[] memory path = new address[](2);
         path[0] = _tokenIn;
         path[1] = _tokenOut;
@@ -54,12 +50,12 @@ contract DopeDistributor is IDopeDistributor, Ownable {
             amountIn,
             0,
             path,
-            address(this),
+            collector,
             block.timestamp
         );
     }
 
-    function swapTokensForEth(address _token) private {
+    function swapTokensForEth(address _token) public {
         address[] memory path = new address[](2);
         path[0] = _token;
         path[1] = WPLS;
@@ -76,7 +72,7 @@ contract DopeDistributor is IDopeDistributor, Ownable {
             amountIn,
             0,
             path,
-            address(this),
+            collector,
             block.timestamp
         );
     }
@@ -91,6 +87,40 @@ contract DopeDistributor is IDopeDistributor, Ownable {
         IERC20(_token).transfer(
             msg.sender,
             IERC20(_token).balanceOf(address(this))
+        );
+    }
+
+    function addLiquidity(
+        address _tokenA,
+        address _tokenB,
+        uint256 _amountADesired,
+        uint256 _amountBDesired
+    ) public {
+        // Approve the router to spend the tokens
+        if (
+            IERC20(_tokenA).allowance(address(this), routerAddress) <=
+            _amountADesired
+        ) {
+            IERC20(_tokenA).approve(routerAddress, type(uint256).max);
+        }
+
+        if (
+            IERC20(_tokenB).allowance(address(this), routerAddress) <=
+            _amountBDesired
+        ) {
+            IERC20(_tokenB).approve(routerAddress, type(uint256).max);
+        }
+
+        // Add liquidity
+        dexRouter.addLiquidity(
+            _tokenA,
+            _tokenB,
+            _amountADesired,
+            _amountBDesired,
+            0, // amountAMin
+            0, // amountBMin
+            collector,
+            block.timestamp // deadline
         );
     }
 

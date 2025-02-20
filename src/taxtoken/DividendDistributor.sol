@@ -7,7 +7,6 @@ import "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "../interface/IDividendDistributor.sol";
 import "../interface/IDexRouter.sol";
 
-
 contract DividendDistributor is IDividendDistributor, Ownable {
     address public _token;
     IERC20 public immutable reward;
@@ -142,7 +141,7 @@ contract DividendDistributor is IDividendDistributor, Ownable {
         }
 
         totalDividends += amount;
-        
+
         if (totalShares > 0)
             if (dividendsPerShare == 0)
                 dividendsPerShare =

@@ -19,7 +19,7 @@ artifacts/
 node_modules/
 
 # Ignore all files in the .cache directory
-.cache/ 
+.cache/
 
 # Ignore all flattened files
 *_flattened.sol

@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "./interface/IERC20.sol";
 import "./interface/IUniswapV2Router02.sol";
 import "./interface/IUniswapV2Pair.sol";
+import "./interface/IArbitrage.sol";
 
-contract Arbitrage {
+contract Arbitrage is IArbitrage {
     address public owner;
 
-    address constant WPLS = 0xA1077a294dDE1B09bB078844df40758a5D0f9a27;
+    address WPLS = 0xA1077a294dDE1B09bB078844df40758a5D0f9a27;
 
     uint256 constant ONE_PLS = 10 ** 18;
     uint256 minProfitInPls = ONE_PLS * 300;
@@ -30,29 +31,19 @@ contract Arbitrage {
     address constant ROUTER_PULSE_RATE_V2 =
         0x71bb8a2feD36aa2dEa9f8f9Cb43E038315Dd7ba3;
 
-    struct Pair {
-        address pairAddress;
-        address token0;
-        address token1;
-        address router;
-        bool doesNextPathUseSameRouter;
-    }
-
-    event ArbitrageSuccess(Pair[] path, uint256 profit);
-
-    event ArbitrageFailed(Pair[] path, string reason);
-
-    constructor() {
+    constructor(bool skipApprove) {
         owner = msg.sender;
 
-        approveToken(ROUTER_UNISWAP_V2, WPLS);
-        approveToken(ROUTER_SUSHI_SWAP_V2, WPLS);
-        approveToken(ROUTER_PULSEX_V1, WPLS);
-        approveToken(ROUTER_PULSEX_V2, WPLS);
-        approveToken(ROUTER_SHIBASWAP, WPLS);
-        approveToken(ROUTER_9MM_V2, WPLS);
-        approveToken(ROUTER_9INCH_V2, WPLS);
-        approveToken(ROUTER_PULSE_RATE_V2, WPLS);
+        if (!skipApprove) {
+            approveToken(ROUTER_UNISWAP_V2, WPLS);
+            approveToken(ROUTER_SUSHI_SWAP_V2, WPLS);
+            approveToken(ROUTER_PULSEX_V1, WPLS);
+            approveToken(ROUTER_PULSEX_V2, WPLS);
+            approveToken(ROUTER_SHIBASWAP, WPLS);
+            approveToken(ROUTER_9MM_V2, WPLS);
+            approveToken(ROUTER_9INCH_V2, WPLS);
+            approveToken(ROUTER_PULSE_RATE_V2, WPLS);
+        }
     }
 
     modifier onlyOwner() {
@@ -67,16 +58,34 @@ contract Arbitrage {
 
     function execute(uint256 amountIn, Pair[] calldata path) public {
         uint256 arbProfit = getArbProfit(amountIn, path);
-        require(arbProfit >= minProfitInPls, "Arbitrage not profitable");
 
-        uint256 balancePlsBefore = IERC20(WPLS).balanceOf(address(this));
-        
+        if (arbProfit < minProfitInPls) {
+            revert("epic fail");
+        }
+
+        uint256 balanceWplsBefore = IERC20(WPLS).balanceOf(address(this));
+
         executeArb(amountIn, path);
 
-        require(
-            IERC20(WPLS).balanceOf(address(this)) > balancePlsBefore,
-            "Arbitrage failed"
-        );
+        uint256 balanceWplsAfter = IERC20(WPLS).balanceOf(address(this));
+
+        emit ArbitrageExecuted(amountIn, balanceWplsBefore, balanceWplsAfter, path, 0);
+
+        if (balanceWplsAfter > balanceWplsBefore) {
+            // We have profit
+            uint256 profit = balanceWplsAfter - balanceWplsBefore;
+
+            if (profit >= minProfitInPls) {
+                emit ArbitrageExecuted(amountIn, balanceWplsBefore, balanceWplsAfter, path, profit);
+                return;
+            } else {
+                revert("not enough profit");
+            }
+        } else {
+            revert("negative profit");
+        }
+
+        
     }
 
     // Check if arb is succeed
@@ -175,6 +184,11 @@ contract Arbitrage {
         IERC20(tokenAddress).transferFrom(address(this), msg.sender, amount);
     }
 
+    function withdrawWpls() public onlyOwner {
+        uint256 amount = IERC20(WPLS).balanceOf(address(this));
+        IERC20(WPLS).transferFrom(address(this), msg.sender, amount);
+    }
+
     // Function to withdraw native PLS
     function withdrawPLS() public onlyOwner {
         uint256 amount = address(this).balance;
@@ -195,5 +209,9 @@ contract Arbitrage {
 
     function setMinProfitInPls(uint256 _minProfitInPls) public onlyOwner {
         minProfitInPls = _minProfitInPls;
+    }
+
+    function setWplsAddress(address _wplsAddress) public onlyOwner {
+        WPLS = _wplsAddress;
     }
 }
