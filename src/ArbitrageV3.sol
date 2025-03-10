@@ -282,7 +282,10 @@ contract ArbitrageV3 is IArbitrage {
         uint256 numerator = amountInWithFee * reserveOut;
         uint256 denominator = (reserveIn * 1000) + amountInWithFee;
 
-        return numerator / denominator;    function withdraw(address tokenAddress) public onlyOwner {
+        return numerator / denominator;
+    }
+
+    function withdraw(address tokenAddress) public onlyOwner {
         uint256 amount = IERC20(tokenAddress).balanceOf(address(this));
         IERC20(tokenAddress).transferFrom(address(this), msg.sender, amount);
     }
@@ -290,7 +293,6 @@ contract ArbitrageV3 is IArbitrage {
     function withdrawWpls() public onlyOwner {
         uint256 amount = IERC20(WPLS).balanceOf(address(this));
         IERC20(WPLS).transferFrom(address(this), msg.sender, amount);
-    }
     }
 
     function sortTokens(
