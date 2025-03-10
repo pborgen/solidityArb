@@ -9,7 +9,8 @@ interface IArbitrage {
         address token0;
         address token1;
         address router;
-        bool doesNextPathUseSameRouter;
+        bool isV3;
+        uint24 fee;
     }
 
     event ArbitrageExecuted(
@@ -34,9 +35,6 @@ interface IArbitrage {
         string message
     );
 
-
-
-    function execute(uint256 amountIn, Pair[] calldata path) external;
 
     // Check if arb is succeed
     function getArbProfit(

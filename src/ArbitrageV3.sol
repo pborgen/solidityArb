@@ -6,8 +6,9 @@ import "./interface/IERC20.sol";
 import "./interface/IUniswapV2Router02.sol";
 import "./interface/IUniswapV2Pair.sol";
 import "./interface/IArbitrage.sol";
+import "./interface/IV3SwapRouter.sol";
 
-contract Arbitrage is IArbitrage {
+contract ArbitrageV3 is IArbitrage {
     address public owner;
 
     address WPLS = 0xA1077a294dDE1B09bB078844df40758a5D0f9a27;
@@ -56,16 +57,13 @@ contract Arbitrage is IArbitrage {
      */
     receive() external payable {}
 
-    function execute(uint256 amountIn, Pair[] calldata path) public returns (uint256) {
-        uint256 arbProfit = getArbProfit(amountIn, path);
-
-        if (arbProfit < minProfitInPls) {
-            revert("epic fail");
-        }
-
+    function executeHasV3(
+        uint256 amountIn,
+        Pair[] calldata path
+    ) public returns (uint256) {
         uint256 balanceWplsBefore = IERC20(WPLS).balanceOf(address(this));
 
-        executeArb(amountIn, path);
+        executeArbHasV3(amountIn, path);
 
         uint256 balanceWplsAfter = IERC20(WPLS).balanceOf(address(this));
 
@@ -83,7 +81,46 @@ contract Arbitrage is IArbitrage {
                     path,
                     profit
                 );
-                
+            } else {
+                revert("not enough profit");
+            }
+        } else {
+            revert("negative profit");
+        }
+
+        return profit;
+    }
+
+    function executeV2Only(
+        uint256 amountIn,
+        Pair[] calldata path
+    ) public returns (uint256) {
+        uint256 arbProfit = getArbProfit(amountIn, path);
+
+        if (arbProfit < minProfitInPls) {
+            revert("epic fail");
+        }
+
+        uint256 balanceWplsBefore = IERC20(WPLS).balanceOf(address(this));
+
+        executeArbV2Only(amountIn, path);
+
+        uint256 balanceWplsAfter = IERC20(WPLS).balanceOf(address(this));
+
+        uint256 profit = 0;
+
+        if (balanceWplsAfter > balanceWplsBefore) {
+            // We have profit
+            profit = balanceWplsAfter - balanceWplsBefore;
+
+            if (profit >= minProfitInPls) {
+                emit ArbitrageExecuted(
+                    amountIn,
+                    balanceWplsBefore,
+                    balanceWplsAfter,
+                    path,
+                    profit
+                );
             } else {
                 revert("not enough profit");
             }
@@ -114,7 +151,10 @@ contract Arbitrage is IArbitrage {
     }
 
     // Execute arb
-    function executeArb(uint256 amountIn, Pair[] calldata pairPath) private {
+    function executeArbV2Only(
+        uint256 amountIn,
+        Pair[] calldata pairPath
+    ) private {
         address[] memory path = new address[](2);
 
         for (uint256 i = 0; i < pairPath.length; i++) {
@@ -155,6 +195,71 @@ contract Arbitrage is IArbitrage {
         }
     }
 
+    // Execute arb
+    function executeArbHasV3(
+        uint256 amountIn,
+        Pair[] calldata pairPath
+    ) private {
+        ISwapRouter uniswapRouter;
+
+        for (uint256 i = 0; i < pairPath.length; i++) {
+            address inputTokenAddress = pairPath[i].token0;
+            address outputTokenAddress = pairPath[i].token1;
+
+            // Skip the first pair because it is WPLS and already approved
+            if (i > 0) {
+                uint256 allowance = IERC20(inputTokenAddress).allowance(
+                    address(this),
+                    pairPath[i].router
+                );
+                if (allowance < amountIn) {
+                    IERC20(inputTokenAddress).approve(
+                        pairPath[i].router,
+                        type(uint256).max
+                    );
+                }
+            }
+
+            uint256 outTokenBalanceBefore = IERC20(outputTokenAddress)
+                .balanceOf(address(this));
+
+            if (pairPath[i].isV3) {
+                ISwapRouter.ExactInputSingleParams memory params = ISwapRouter
+                    .ExactInputSingleParams({
+                        tokenIn: inputTokenAddress,
+                        tokenOut: outputTokenAddress,
+                        fee: pairPath[i].fee,
+                        recipient: address(this),
+                        deadline: 0,
+                        amountIn: amountIn,
+                        amountOutMinimum: 0,
+                        sqrtPriceLimitX96: 0
+                    });
+
+                uniswapRouter = ISwapRouter(pairPath[i].router);
+                amountIn = uniswapRouter.exactInputSingle(params);
+            } else {
+                address[] memory path = new address[](2);
+                path[0] = inputTokenAddress;
+                path[1] = outputTokenAddress;
+
+                // Store amount out to amountIn for use in the next iteration if there is one
+                IUniswapV2Router02(pairPath[i].router)
+                    .swapExactTokensForTokensSupportingFeeOnTransferTokens(
+                        amountIn,
+                        0,
+                        path,
+                        address(this),
+                        block.timestamp
+                    );
+
+                amountIn =
+                    IERC20(outputTokenAddress).balanceOf(address(this)) -
+                    outTokenBalanceBefore;
+            }
+        }
+    }
+
     function getReserves(
         address pairAddress,
         address tokenA,
@@ -177,7 +282,15 @@ contract Arbitrage is IArbitrage {
         uint256 numerator = amountInWithFee * reserveOut;
         uint256 denominator = (reserveIn * 1000) + amountInWithFee;
 
-        return numerator / denominator;
+        return numerator / denominator;    function withdraw(address tokenAddress) public onlyOwner {
+        uint256 amount = IERC20(tokenAddress).balanceOf(address(this));
+        IERC20(tokenAddress).transferFrom(address(this), msg.sender, amount);
+    }
+
+    function withdrawWpls() public onlyOwner {
+        uint256 amount = IERC20(WPLS).balanceOf(address(this));
+        IERC20(WPLS).transferFrom(address(this), msg.sender, amount);
+    }
     }
 
     function sortTokens(
@@ -189,15 +302,7 @@ contract Arbitrage is IArbitrage {
             : (tokenB, tokenA);
     }
 
-    function withdraw(address tokenAddress) public onlyOwner {
-        uint256 amount = IERC20(tokenAddress).balanceOf(address(this));
-        IERC20(tokenAddress).transferFrom(address(this), msg.sender, amount);
-    }
 
-    function withdrawWpls() public onlyOwner {
-        uint256 amount = IERC20(WPLS).balanceOf(address(this));
-        IERC20(WPLS).transferFrom(address(this), msg.sender, amount);
-    }
 
     // Function to withdraw native PLS
     function withdrawPLS() public onlyOwner {

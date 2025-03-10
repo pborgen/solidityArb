@@ -84,14 +84,16 @@ contract ArbitrageTest is Test {
             address(tokenWplsErc20),
             address(tokenHexErc20),
             address(routerPulseXV1),
-            false
+            false,
+            3000
         );
         path[1] = IArbitrage.Pair(
             address(pair1PulseXV2),
             address(tokenHexErc20),
             address(tokenWplsErc20),
             address(routerPulseXV2),
-            false
+            false,
+            3000
         );
 
         uint256 profit = arbitrage.getArbProfit(amountIn, path);
